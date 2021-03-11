@@ -1,0 +1,221 @@
+---
+title: "Basics about Graphs"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(usethis)
+library(tidyverse)
+library(tidygraph)
+library(igraph)
+library(ggraph)
+library(ggnetwork)
+library(phyloseq)
+knitr::opts_chunk$set(echo = FALSE, highlight = TRUE, message=FALSE, warning=FALSE)
+```
+
+
+## Introduction
+
+In this worksheet, we will discuss how to visualize networks using the tidyverse.
+
+We will be using the R package **tidyverse**, which includes `ggplot()` and related functions.
+
+```{r library-calls, echo = TRUE, eval = FALSE}
+# load required library
+library(tidyverse)
+```
+
+We use specialized packages for graphs based on
+the `igraph` package, the tidyverse compatible ones
+are `ggnetwork` and `ggraph`.
+
+```{r library-calls2, echo = TRUE, eval = FALSE}
+# load required library
+library(igraph)
+library(tidygraph)
+library(ggnetwork)
+library(ggraph)
+```
+
+## What is a graph ?
+
+
+```{r igraphplot1, echo = FALSE, fig.cap="A small undirected graph with numbered nodes.",eval = TRUE}
+library("igraph")
+edges1 = matrix(c(1,3,2,3,3,4,4,5,4,6), byrow = TRUE, ncol = 2)
+g1 = graph_from_edgelist(edges1, directed = FALSE)
+vertex_attr(g1, name = "vname") = paste0(1:6)
+plot(g1, vertex.size = 25, edge.width = 5, vertex.color = "coral")
+```
+
+```{r adjacencyplot1, echo = FALSE}
+library(reshape)
+ggplotadjacency = function(a){
+  n = nrow(a)
+  p = ncol(a)
+  melted_a  =  melt(a)
+  melted_a$value = as.factor(melted_a$value)
+  cols = c("white", "darkblue")
+  ggplot(data = melted_a, aes(x = X1, y = X2, fill=value)) +
+    geom_tile(colour="black") +
+    coord_fixed(ratio = 1,ylim=c(0.5,n+0.5),xlim=c(0.5,p+0.5))+
+    scale_fill_manual(values=cols)+scale_x_discrete(name="",breaks=1:p)+
+    scale_y_reverse(name="",breaks=n:1)+theme_bw() +
+    theme(axis.text = element_text(size = 10),
+      legend.key = element_rect(fill = "white"),
+      legend.background = element_rect(fill = "white"),
+      panel.border=element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.line =element_line(color="white")
+    )
+}
+```
+
+Here is the adjacency matrix of the small undirected graph represented below. We see that $A$ is symmetric $n \times n$ matrix of $0$'s and $1$'s. 
+
+```{r adja, echo=TRUE}
+A=as_adj(g1, sparse = FALSE)
+A
+```
+
+```{r adjmatrix, fig.cap = "", fig.width=4, fig.height=4, echo = FALSE}
+ggplotadjacency(as_adj(g1, sparse = FALSE))
+```
+
+Here is how we plot a simple graph:
+
+```{r igraph0}
+library("igraph")
+edges1 = matrix(c(1,3,2,3,3,4,4,5,4,6), byrow = TRUE, ncol = 2)
+g1 = graph_from_edgelist(edges1, directed = FALSE)
+plot(g1, vertex.size = 25, edge.width = 5, vertex.color = "coral")
+```
+
+
+
+
+### Modify the Code to add node labels
+
+Now add two lines that label the nodes:
+
+```{r igraphE, exercise=TRUE, exercise.lines = 6}
+library("igraph")
+edges1 = matrix(c(1,3,2,3,3,4,4,5,4,6), byrow = TRUE, ncol = 2)
+
+
+```
+
+
+```{r igraphE-solution}
+library("igraph")
+edges1 = matrix(c(1,3,2,3,3,4,4,5,4,6), byrow = TRUE, ncol = 2)
+g1 = graph_from_edgelist(edges1, directed = FALSE)
+vertex_attr(g1, name = "vname") = paste0(1:6)
+plot(g1, vertex.size = 25, edge.width = 5, vertex.color = "coral")
+```
+
+
+
+### Other ways to enter graph data
+
+Can you think of an alternative way of reading the graph from an edge set dataframe (the code should be two or three lines)? 
+
+```{r graphex1wh,exercise=TRUE, exercise.eval=FALSE}
+edges=_____
+sg =  _____ 
+```
+
+
+```{r graphex1wh-solution}
+edges = "1,3\n2,3\n3,4\n4,6\n4,5"
+sg  = graph_from_data_frame(read.csv(textConnection(edges),
+                      header = FALSE), directed = FALSE)
+sg
+```
+
+
+### Elements of a simple graph: 
+
+-   The nodes or vertices which are the colored circles with numbers in them in the Figure.
+
+-   Edges or connections, the segments that join the nodes and which can be directed or not.
+
+-   Edge lengths, when not specified, we suppose they are all one and compute the distance between vertices on the graph as the number the edges traversed. On the other hand, in many situations we have meaningful edge lengths or strengths of connections between vertices that we can use both in the plots and analyses.
+
+
+## And a network?
+
+ - We call a **weighted**, **directed** graph a **network**. Networks have adjacency matrices $A$ which are $n$ by $n$ matrices of positive numbers corresponding to the edge lengths.
+
+-   Edge and node attributes: optionally, each edge or each node can be mapped to further continuous or categorical variables.
+
+
+### Networks can be **given** to us in databases
+
+As a starting example, the following data came from the [STRING database](https://string-db.org), it is a chemokine network formatted as a `txt` file.
+
+### Starting with a txt file for instance
+
+Look at the file linked [here](https://web.stanford.edu/class/bios221/data/small_chemokine.txt)
+
+We read the file in as a simple table for the time being.
+
+```{r chemox, echo = TRUE}
+chemodats =read.table("https://web.stanford.edu/class/bios221/data/small_chemokine.txt",header=TRUE) 
+```
+
+
+
+###  Making a graph from the list of nodes and edges
+
+
+
+```{r chemoxindata, echo = TRUE}
+head(chemodats[,1:8])
+```
+
+**Question**: What does each row of `chemodats` correspond to? 
+
+Our first function is `graph_from_data_frame` from the `igraph` package:
+
+```{r graphobject, echo=TRUE}
+gr = graph_from_data_frame(chemodats[,c("node1", "node2")], directed = FALSE)
+E(gr)$weight = 1
+V(gr)$size = centralization.degree(gr)$res
+saveRDS(gr,file="../gr.RDS")
+```
+
+We created an annotation variable for the nodes. This was computed a the centralization index of the nodes with regards to this graph (larger nodes are more central to the graph).
+
+Now we have an `igraph` object, how would you plot it?
+
+```{r igraphplot, exercise=TRUE}
+____(gr)
+```
+
+
+
+```{r igraphplot-solution}
+plot(gr)
+```
+
+Question: What would you type in order to
+find out which are the default plotting parameters for this inherited plot of an `igraph` object?
+
+```{r ploti, exercise=TRUE}
+_____
+```
+
+```{r ploti-solution}
+?plot.igraph
+```
+
+This `plot` function is the equivalent of a simple base R plot for `gr` which is an object of type `igraph`. 
+
+
+
+

@@ -1,0 +1,142 @@
+---
+title: "Using Graphs for Statistics"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+```
+
+## Testing a graph for association with a factor variable
+
+For univariate data in two groups, we can test the differences by looking at the number of runs within each group.
+
+Seeing the number of runs in a one-dimensional, two-sample, nonparametric Wald-Wolfowitz test can indicate whether the two groups have the same distributions.
+
+```{r WWtest, echo=FALSE, fig.width=10, fig.height=2}
+library(ggplot2)
+dfbr=data.frame(measure=c(rnorm(15,0.9),rnorm(15,1.8)),
+  group=as.factor(c(rep("men",15),rep("women",15))))
+ggplot(dfbr,aes(x=measure,group=group,y=0)) + ylim(-0.25,+0.25) +
+  geom_point(aes(col=group,x=measure,y=0,shape=group),size=5,alpha=0.6)+
+  scale_color_manual(values=c("blue","red"))+
+  theme_bw() + geom_hline(yintercept = 0) +
+  theme(panel.border = element_blank(),
+  axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.title.x=element_blank(),
+        panel.grid.major.y = element_blank() ,
+        panel.grid.minor.y = element_blank() )+ coord_fixed()
+```
+
+
+
+
+## Testing the relation between a graph and vertex factors
+
+### The samples have factor covariates
+
+The nodes in the graph correspond to
+the samples and are associated to
+factors that specify the litter and individual ids of the mice from which the samples were collected.
+
+```{r phylograph}
+library("phyloseq")
+library("phyloseqGraphTest")
+library("igraph")
+## data(ps1)
+ps1  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
+ps1
+sampledata = data.frame( sample_data(ps1))
+d1 = as.matrix(phyloseq::distance(ps1, method="jaccard"))
+gr = graph.adjacency(d1,  mode = "undirected", weighted = TRUE)
+net = igraph::mst(gr)
+V(net)$id = sampledata[names(V(net)), "host_subject_id"]
+V(net)$litter = sampledata[names(V(net)), "family_relationship"]
+```
+
+
+The minimum spanning tree based on Jaccard dissimilarity and annotated with the mice ID and litter factors.
+
+
+```{r mstplot, fig.width=4, fig.height=4.5}
+library(ggnetwork)
+gnet=ggnetwork(net)
+ggplot(gnet, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "darkgray") +
+  geom_nodes(aes(color = id, shape = litter)) + theme_blank()+
+  theme(legend.position="bottom")
+```
+
+```{r MSTJaccardplain}
+library("phyloseqGraphTest")
+gt = graph_perm_test(ps1, "host_subject_id", distance="jaccard",
+                     type="mst",  nperm=1000)
+plot_test_network(gt)
+```
+
+```{r testresults}
+gt
+plot_permutations(gt)
+gt$pval
+
+```
+The permutation histogram of the number of pure edges in the network obtained from the minimal spanning tree with Jaccard similarity.
+
+
+```{r ggnetworkphyl}
+net = make_network(ps1, max.dist = 0.35)
+sampledata = data.frame(sample_data(ps1))
+V(net)$id = sampledata[names(V(net)), "host_subject_id"]
+V(net)$litter = sampledata[names(V(net)), "family_relationship"]
+netg = ggnetwork(net)
+```
+
+
+```{r ggnetworkplotJ,  fig.cap = "A co-occurrence network created by using a threshold on the Jaccard dissimilarity matrix. The colors represent which mouse the sample came from; the shape represents which litter the mouse was in.", fig.margin = FALSE, fig.width=6, fig.height=5}
+ggplot(netg, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(color = "darkgray") +
+  geom_nodes(aes(color = id, shape = litter)) + theme_blank()+
+    theme(plot.margin = unit(c(0, 5, 2, 0), "cm"))+
+    theme(legend.position = c(1.4, 0.3),legend.background = element_blank(),
+          legend.margin=margin(0, 3, 0, 0, "cm"))+
+         guides(color=guide_legend(ncol=2))
+```
+
+```{r mstperm}
+gt = graph_perm_test(ps1, "family_relationship",
+        grouping = "host_subject_id",
+        distance = "jaccard", type = "mst", nperm= 1000)
+gt$pval
+```
+
+
+```{r mstpermplotNest, fig.keep = 'high', fig.cap = "The permutation histogram obtained from the minimal spanning tree with Jaccard similarity.", fig.width=4, fig.height=2.1}
+plot_permutations(gt)
+```
+
+```{r knn1test}
+gtnn1 = graph_perm_test(ps1, "family_relationship",
+                      grouping = "host_subject_id",
+                      distance = "jaccard", type = "knn", knn = 1)
+gtnn1$pval
+```
+
+```{r knn1plot, fig.keep = 'high', fig.cap = "The graph obtained from a nearest-neighbor graph with Jaccard similarity.", fig.width=4, fig.height = 2.7}
+plot_test_network(gtnn1)
+
+```
+
+
+
+
+References:
+
+ - [phyloseqGraphTest vignette](https://cran.r-project.org/web/packages/phyloseqGraphTest/vignettes/gt_vignette.html)
+ 
+ - [Friedman Rafsky explanation and details](https://web.stanford.edu/class/bios221/book/Chap-Graphs.html#mst-based-testing-the-friedmanrafsky-test)
+ 
+ 

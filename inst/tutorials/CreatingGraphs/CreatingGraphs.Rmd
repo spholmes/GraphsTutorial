@@ -1,0 +1,372 @@
+---
+title: "Creating Graphs from Data"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    code_folding: hide
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+
+
+## Creating a graph from distances
+
+The most common form of network that we create from data comes from some measure that we have available between the points that will be vertices of the graph. Suppose we are provided with a `dist` object from a distance computation between samples or nodes. There are several ways a graph can be constructed from this starting point.
+
+
+
+### Minimum spanning trees
+
+```{r mstree1}
+library("igraph")
+library("ggnetwork")
+library("ggplot2")
+pts = structure(c(0, 0, 1, 1, 1.5, 2, 0, 1, 1, 0, 0.5, 0.5),
+                .Dim = c(6L,2L))
+matxy = pts
+distxy = stats::dist(matxy)
+g = graph.adjacency(as.matrix(distxy), weighted = TRUE)
+mst1 = igraph::mst(g)
+```
+
+A **spanning tree** is a tree that goes through all points at least once, the graph with red edges is such a tree.
+
+The minimum spanning tree is 
+the spanning tree with the shortest length.
+
+```{r MST,echo=FALSE,fig.width=4,fig.height=2.2}
+gred=igraph::make_ring(6) - igraph::edges(6)
+ggred=ggnetwork(gred, arrow.gap=0, layout = matxy)
+ggplot(ggred, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(size=1.5, color = "red",alpha=0.8) +
+  geom_nodes(size = 6) +
+  theme_blank()
+ggmst1=ggnetwork(mst1,arrow.gap=0,layout=matxy)
+#gg=ggnetwork(gr1, arrow.gap=0, layout = matxy)
+ggplot(ggmst1, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(size=1.5, color = "steelblue",alpha=0.8) +
+  geom_nodes(size = 6) +
+  theme_blank()
+```
+
+Minimum spanning trees (MST) are easy/cheap to compute and there are many different functions in R packages that provide them:
+
+`igraph::mst`
+`ape::mst`
+`ade4::mstree`
+`vegan::spantree`
+`spdep::mstree`
+
+
+
+
+
+## Example: A graph  created from DNA distance data
+
+An example distance matrix was created between strains of HIV from different patients whose countries were recorded.
+
+We can read in the DNA distance data 
+that was provided.
+
+Using `ggnetwork` and `ape::mst`
+
+```{r HIVgraph}
+library(ggplot2)
+library(igraph)
+library(ggnetwork)
+load(url("https://web.stanford.edu/class/bios221/data/dist2009c.RData"))
+country09 = attr(dist2009c, "Label")
+mstree2009 = ape::mst(dist2009c)
+gr09 = graph.adjacency(mstree2009, mode = "undirected")
+gg = ggnetwork(gr09, arrow.gap = 0, layout = layout_with_fr(gr09))
+ggplot(gg, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(color = "black", alpha = 0.5, curvature = 0.1) +
+  geom_nodes(aes(color = name), size = 2) +  theme_blank() +
+  geom_nodetext(aes(label = name), color = "black", size = 2.5) +
+  theme(plot.margin = unit(c(0, 1, 1, 6), "cm"))+
+   theme(legend.position = c(0, 0.14),
+      legend.background = element_blank(),
+      legend.text = element_text(size = 7))
+```
+
+We can use the `ggrepel` package to make
+it cleaner:
+
+
+```{r QuesAnsw, echo = TRUE}
+ggplot(gg, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_edges(color = "black", alpha = 0.5, curvature = 0.1) +
+  geom_nodes(aes(color = name), size = 2) +
+  geom_nodetext_repel(aes(label = name), color="black", size = 2) +
+  theme_blank() +
+  guides(color = guide_legend(keyheight = 0.3, keywidth = 0.3,
+         override.aes = list(size = 6), title = "Countries"))
+```
+
+## A different approach to the layout for the MST: `tidygraph` and `ggraph`
+
+More recently, there has been a new development with an extension of the ggraph package to include `tidyverse` compatible data structures, through the
+`tidygraph` package which creates
+"graph" tibbles.
+
+```{r}
+library(tidygraph)
+library(ggraph)
+# Make sure you have the data loaded
+# load(url("https://web.stanford.edu/class/bios221/data/dist2009c.RData"))
+country09 <- attr(dist2009c, "Label")
+class(dist2009c)
+graph09 <- graph_from_adjacency_matrix(as.matrix(dist2009c), weighted=TRUE)
+mstree2009tidy <- igraph::mst(graph09)%>%as_tbl_graph()
+## Without the labels
+
+ggt<-ggraph(mstree2009tidy, layout = 'nicely') + geom_edge_link() + 
+  theme_graph()
+ggt
+## Adding labels
+ggt+
+geom_node_text(aes(label = name), colour = 'purple', vjust = 0.4)+     theme_graph()
+## Adding colors for countries
+ggt+
+geom_node_point(aes(color = name), size = 2) +theme_graph()
+```
+
+We would like to label only the countries which appear as hubs (ie with a high degree, say larger than 5).
+
+We are going to compute the degrees
+and label the nodes according to their degrees.
+Let's look at how to add that variable:
+
+```{r nodedegree}
+mstDegreed<-mstree2009tidy %>%
+  activate(nodes) %>%
+  mutate(degree=centrality_degree(,mode="all"))
+mstDegreed
+```
+
+#### Exercise
+
+Try to modify the plotting code so that the labels of the higher degree hubs are larger and the graph nodes are readable
+
+```{r offcenter,exercise=TRUE}
+ggraph(mstDegreed,layout = 'nicely') + geom_edge_link() + 
+geom_node_point(aes(color = name))+ 
+geom_node_text(aes(label = name, size=degree))+
+theme_graph()
+```
+
+
+```{r offcenter-hint}
+ggraph(mstDegreed,layout = 'nicely') + geom_edge_link() + 
+geom_node_point(aes(color = name))+ 
+geom_node_text(aes(label = name, size=degree,alpha=degree),nudge_x=-13,nudge_y=-6.5)+
+theme_graph()
+```
+
+
+
+### Remapping the minimum spanning tree on the world
+
+
+We are going to make a minimum spanning tree between HIV cases using  the geographic location of each case was made to reduce overlapping of points; the DNA distances between patient strains were used as the input to an undirected minimum spanning tree algorithm, the world coordinates come
+from the `rworldmap` package.
+
+
+```{r HIVmap, message = FALSE, warning =  FALSE}
+library("rworldmap")
+
+mat <- match(country09, countriesLow$NAME)
+coords2009 = data.frame(
+  lat = countriesLow$LAT[mat],
+  lon = countriesLow$LON[mat],
+  country = country09)
+
+layoutCoordinates = cbind(
+  x = coords2009$lon,
+  y = coords2009$lat)
+
+ggt<-ggraph(mstree2009tidy, layout =   layoutCoordinates) +
+  geom_edge_link() +
+  theme_graph()
+ggt
+ggt<-ggraph(mstree2009tidy, layout = layoutCoordinates) + 
+  geom_edge_link(alpha=0.3) + 
+     theme_graph()
+ggt
+```
+
+When comparing these two graphs, what do we notice?
+
+Alot of overlapping edges that are invisible.
+
+
+How can we fix this?
+
+One way is to use **jitter** for each of the points.
+
+Try modifying the code to add a **jitter** and plot a more instructive version of the graph.
+
+```{r }
+jitterlayoutCoordinates = cbind(
+  x = jitter(coords2009$lon, amount = 10),
+  y = jitter(coords2009$lat, amount = 7))
+
+ggt<-ggraph(mstree2009tidy, layout =   jitterlayoutCoordinates) +
+  geom_edge_link(alpha=0.5,linemitre=5) +
+  theme_graph()
+```
+
+We actually need to keep the jittered coordinates and assign the labels to the nodes so they appear on the plot.
+
+
+```{r HIVmapChap10,message = FALSE, warning =  FALSE}
+labc = names(table(country09)[which(table(country09) > 1)])
+matc = match(labc, countriesLow$NAME)
+dfc = data.frame(
+  latc = countriesLow$LAT[matc],
+  lonc = countriesLow$LON[matc],
+  labc)
+
+ggt <- ggraph(mstree2009tidy, layout =   jitterlayoutCoordinates) +
+geom_edge_link(alpha=0.5,linemitre=5) +
+geom_label(data = dfc, aes(x = lonc, y = latc, label = labc, fill = labc), colour = "white", alpha = 0.7, size = 3) +
+  geom_node_point(aes(color = country09), size = 2,alpha=0.4) + guides(fill=FALSE)+
+    theme_graph()
+ggt
+
+```
+
+Try changing the type of edge
+(bend,diagonal,arc)
+
+```{r edgelink,exercise=TRUE}
+ggt <- ggraph(mstree2009tidy, layout =   jitterlayoutCoordinates) +
+geom_edge_link(alpha=0.5,linemitre=5) +
+geom_label(data = dfc, aes(x = lonc, y = latc,label = labc, fill = labc), colour = "white", alpha = 0.7, size = 3) +
+  geom_node_point(aes(color = country09), size = 2,alpha=0.4) +
+  guides(fill=FALSE)+
+    theme_graph()
+ggt
+```
+
+```{r edgelink-hint}
+ggt <- ggraph(mstree2009tidy, layout =   jitterlayoutCoordinates) +
+geom_edge_bend(alpha=0.5,linemitre=5) +
+geom_label(data = dfc, aes(x = lonc, y = latc,label = labc, fill = labc), colour = "white", alpha = 0.7, size = 3) +
+  geom_node_point(aes(color = country09), size = 2,alpha=0.4) +
+  guides(fill = FALSE) +
+    theme_graph()
+ggt
+```
+
+```{r edgelink-solution}
+ggt <- ggraph(mstree2009tidy, layout =   jitterlayoutCoordinates) +
+geom_edge_arc(alpha=0.5,linemitre=5) +
+geom_label(data = dfc, aes(x = lonc, y = latc,label = labc, fill = labc), colour = "white", alpha = 0.7, size = 3) +
+  geom_node_point(aes(color = country09), size = 2,alpha=0.4) +
+  guides(fill = FALSE) +
+    theme_graph()
+ggt
+```
+
+
+Another new possibility is the new
+[sfnetworks package](https://luukvdmeer.github.io/sfnetworks/articles/intro.html) which allows for
+[paths and routing](https://luukvdmeer.github.io/sfnetworks/articles/routing.html)
+
+## Co-occurrence graphs
+
+We are going to look at microbial abundances of different strains/species of bacteria in biological samples.
+
+These samples come from a longitudinal study of mice from several litters.
+
+
+### Bacterial community example using a `phyloseq` object
+
+We load the `phyloseq` package first and read the phyloseq object that integrates all the data.
+
+```{r phyloseqnetwork0,echo=TRUE}
+library("phyloseq")
+#External file
+ps1  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
+#Internal file from package data
+# data(ps1)
+ps1
+```
+
+We could like to connect the samples that have a lot of bacteria in common.
+The best way to measure similarity between species abundances is the "Jaccard distance".
+
+We start by computing the Jaccard distance between samples and set a threshold for the distance to correspond to an edge in the "co-occurrence" graph.
+
+Exercise: Add a line of code that makes the shape give the litter information:
+
+```{r phyloseqnetwork1,echo=TRUE,exercise=TRUE,eval.exercise=TRUE}
+# data(ps1)
+ps1
+ig<-make_network(ps1, max.dist=0.3)
+plot_network(ig,ps1,color="host_subject_id")
+```
+
+
+```{r phyloseqnetwork1-solution}
+ig<-make_network(ps1, max.dist=0.3)
+plot_network(ig,ps1,color="host_subject_id",shape="family_relationship")
+```
+
+We can replicate what the function is doing by hand,
+using the tidygraph package, you have to add a few lines
+to remove the isolates.
+
+We start by loading the libraries
+```{r loadl,message=FALSE}
+library("tidygraph")
+library("igraph")
+library("ggraph")
+```
+
+
+```{r JaccardThreshold,exercise=TRUE}
+d1 <- as.matrix(phyloseq::distance(ps1, method="jaccard"))
+d1 <- d1 +diag(ncol(d1))
+threshM <- (d1<0.35)
+gr <- graph_from_adjacency_matrix(threshM,  mode = "lower")
+sampledata = data.frame( sample_data(ps1))
+V(gr)$id = sampledata[names(V(gr)), "host_subject_id"]
+V(gr)$litter = sampledata[names(V(gr)), "family_relationship"]
+tigr<- gr%>% as_tbl_graph()
+tigr
+ggraph(tigr,layout="fr")+ geom_edge_link() +
+  geom_node_point(aes(color=id,shape=litter))+
+  theme_graph()
+```
+
+```{r JaccardThreshold-solution}
+tigr %>%
+  activate(nodes) %>% 
+  filter(!node_is_isolated()) %>%
+  ggraph(,layout="fr") + geom_edge_link() +
+  geom_node_point(aes(color=id,shape=litter))+
+  theme_graph()
+```
+
+
+
+
+
+
+
+## References:
+
+[Online book chapter of book by Holmes and Huber](https://web.stanford.edu/class/bios221/book/Chap-Graphs.html)
+
+[Tutorial on networks with phyloseq](https://joey711.github.io/phyloseq/plot_network-examples.html)
+
+[tidygraph tutorial](https://www.data-imaginist.com/2017/introducing-tidygraph/)
+

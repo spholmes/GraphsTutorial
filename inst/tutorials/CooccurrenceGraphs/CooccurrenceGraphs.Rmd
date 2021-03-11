@@ -1,0 +1,86 @@
+---
+title: "Co-occurrence Graphs"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Co-occurrence graphs
+
+We are going to look at microbial abundances of different strains/species of bacteria in biological samples.
+
+These samples come from a longitudinal study of mice from several litters.
+
+
+### Bacterial community example using a `phyloseq` object
+
+We load the `phyloseq` package first and read the phyloseq object that integrates all the data.
+
+```{r phyloseqnetwork0,echo=TRUE}
+library("phyloseq")
+#External file
+ps1  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
+#Internal file from package data
+# data(ps1)
+ps1
+```
+
+We could like to connect the samples that have a lot of bacteria in common.
+The best way to measure similarity between species abundances is the "Jaccard distance".
+
+We start by computing the Jaccard distance between samples and set a threshold for the distance to correspond to an edge in the "co-occurrence" graph.
+
+Exercise: Add a line of code that makes the shape give the litter information:
+
+```{r phyloseqnetwork1,echo=TRUE,exercise=TRUE,eval.exercise=TRUE}
+# data(ps1)
+ps1
+ig<-make_network(ps1, max.dist=0.3)
+plot_network(ig,ps1,color="host_subject_id")
+```
+
+
+```{r phyloseqnetwork1-solution}
+ig<-make_network(ps1, max.dist=0.3)
+plot_network(ig,ps1,color="host_subject_id",shape="family_relationship")
+```
+
+We can replicate what the function is doing by hand,
+using the tidygraph package, you have to add a few lines
+to remove the isolates.
+
+We start by loading the libraries
+```{r loadl,message=FALSE}
+library("tidygraph")
+library("igraph")
+library("ggraph")
+```
+
+
+```{r JaccardThreshold,exercise=TRUE}
+d1 <- as.matrix(phyloseq::distance(ps1, method="jaccard"))
+d1 <- d1 +diag(ncol(d1))
+threshM <- (d1<0.35)
+gr <- graph_from_adjacency_matrix(threshM,  mode = "lower")
+sampledata = data.frame( sample_data(ps1))
+V(gr)$id = sampledata[names(V(gr)), "host_subject_id"]
+V(gr)$litter = sampledata[names(V(gr)), "family_relationship"]
+tigr<- gr%>% as_tbl_graph()
+tigr
+ggraph(tigr,layout="fr")+ geom_edge_link() +
+  geom_node_point(aes(color=id,shape=litter))+
+  theme_graph()
+```
+
+```{r JaccardThreshold-solution}
+tigr %>%
+  activate(nodes) %>% 
+  filter(!node_is_isolated()) %>%
+  ggraph(,layout="fr") + geom_edge_link() +
+  geom_node_point(aes(color=id,shape=litter))+
+  theme_graph()
+```
