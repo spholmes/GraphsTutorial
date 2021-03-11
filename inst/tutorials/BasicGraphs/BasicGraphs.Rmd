@@ -40,6 +40,18 @@ library(ggnetwork)
 library(ggraph)
 ```
 
+
+We will use a package which is on BIOCONDUCTOR and not
+on CRAN, so you need to also install it using:
+
+```{r installphyloseq,eval=FALSE,echo=TRUE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("phyloseq")
+```
+
+
 ## What is a graph ?
 
 
