@@ -15,6 +15,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Imports: 
     tidygraph,
+    tidyverse,
+    reshape,
     igraph,
     ggraph,
     phyloseq,
