@@ -1,13 +1,14 @@
 Package: GraphsTutorial
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Practical Tutorial on Graph Manipulation
+Version: 0.0.9.1
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Susan",
+           family = "Holmes",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+           email = "sp.holmes@gmail.com",
+           comment = c(ORCID = "0000-0002-2208-8168"))
+Description: Set of tutorials on graphs, Basics, Layout, Creating Graphs
+             from data and using graphs to compute statistics.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -25,6 +26,7 @@ Imports:
     ape,
     phyloseqGraphTest,
     ggnetwork,
+    dplyr,
     learnr
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5.0)

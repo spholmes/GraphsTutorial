@@ -293,11 +293,11 @@ We load the `phyloseq` package first and read the phyloseq object that integrate
 
 ```{r phyloseqnetwork0,echo=TRUE}
 library("phyloseq")
-#External file
-ps1  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
+#External file load as needed
+# micephyloseq  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
 #Internal file from package data
-# data(ps1)
-ps1
+data(micephyloseq)
+micephyloseq
 ```
 
 We could like to connect the samples that have a lot of bacteria in common.
@@ -308,16 +308,16 @@ We start by computing the Jaccard distance between samples and set a threshold f
 Exercise: Add a line of code that makes the shape give the litter information:
 
 ```{r phyloseqnetwork1,echo=TRUE,exercise=TRUE,eval.exercise=TRUE}
-# data(ps1)
-ps1
-ig<-make_network(ps1, max.dist=0.3)
-plot_network(ig,ps1,color="host_subject_id")
+data(micephyloseq)
+micephyloseq
+ig<-make_network(micephyloseq, max.dist=0.3)
+plot_network(ig,micephyloseq,color="host_subject_id")
 ```
 
 
 ```{r phyloseqnetwork1-solution}
-ig<-make_network(ps1, max.dist=0.3)
-plot_network(ig,ps1,color="host_subject_id",shape="family_relationship")
+ig<-make_network(micephyloseq, max.dist=0.3)
+plot_network(ig,micephyloseq,color="host_subject_id",shape="family_relationship")
 ```
 
 We can replicate what the function is doing by hand,
@@ -333,11 +333,12 @@ library("ggraph")
 
 
 ```{r JaccardThreshold,exercise=TRUE}
-d1 <- as.matrix(phyloseq::distance(ps1, method="jaccard"))
+data(micephyloseq)
+d1 <- as.matrix(phyloseq::distance(micephyloseq, method="jaccard"))
 d1 <- d1 +diag(ncol(d1))
 threshM <- (d1<0.35)
 gr <- graph_from_adjacency_matrix(threshM,  mode = "lower")
-sampledata = data.frame( sample_data(ps1))
+sampledata = data.frame( sample_data(micephyloseq))
 V(gr)$id = sampledata[names(V(gr)), "host_subject_id"]
 V(gr)$litter = sampledata[names(V(gr)), "family_relationship"]
 tigr<- gr%>% as_tbl_graph()

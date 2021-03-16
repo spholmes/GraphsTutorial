@@ -177,7 +177,10 @@ Look at the file linked [here](https://web.stanford.edu/class/bios221/data/small
 We read the file in as a simple table for the time being.
 
 ```{r chemox, echo = TRUE}
-chemodats =read.table("https://web.stanford.edu/class/bios221/data/small_chemokine.txt",header=TRUE) 
+#Read the data from the data website
+#chemodats =read.table("https://web.stanford.edu/class/bios221/data/small_chemokine.txt",header=TRUE) 
+data(chemodats)
+
 ```
 
 
@@ -198,7 +201,8 @@ Our first function is `graph_from_data_frame` from the `igraph` package:
 gr = graph_from_data_frame(chemodats[,c("node1", "node2")], directed = FALSE)
 E(gr)$weight = 1
 V(gr)$size = centralization.degree(gr)$res
-saveRDS(gr,file="../gr.RDS")
+## You can save the graph for later use as an R object
+## saveRDS(gr,file="../gr.RDS")
 ```
 
 We created an annotation variable for the nodes. This was computed a the centralization index of the nodes with regards to this graph (larger nodes are more central to the graph).

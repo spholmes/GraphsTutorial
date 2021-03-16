@@ -20,8 +20,15 @@ knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
 library("igraph")
 ```
 
-```{r graphprepare}
-gr<-readRDS("../gr.RDS")
+ In case you did not run the Creating Graphs tutorial,
+ you can run the following code:
+
+
+```{r graphprepare,echo=TRUE}
+data(chemodats)
+gr = graph_from_data_frame(chemodats[,c("node1", "node2")], directed = FALSE)
+E(gr)$weight = 1
+V(gr)$size = centralization.degree(gr)$res
 ```
 
 If you look at the help for `igraph.plotting` you find a description of many different choices for *laying out* the graph as usually the x and y  coordinates are not provided 

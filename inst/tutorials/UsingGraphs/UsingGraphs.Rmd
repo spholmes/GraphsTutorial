@@ -47,11 +47,11 @@ factors that specify the litter and individual ids of the mice from which the sa
 library("phyloseq")
 library("phyloseqGraphTest")
 library("igraph")
-## data(ps1)
-ps1  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
-ps1
-sampledata = data.frame( sample_data(ps1))
-d1 = as.matrix(phyloseq::distance(ps1, method="jaccard"))
+data(micephyloseq)
+#micephyloseq  = readRDS(url("https://web.stanford.edu/class/bios221/data/ps1.rds"))
+micephyloseq
+sampledata = data.frame( sample_data(micephyloseq))
+d1 = as.matrix(phyloseq::distance(micephyloseq, method="jaccard"))
 gr = graph.adjacency(d1,  mode = "undirected", weighted = TRUE)
 net = igraph::mst(gr)
 V(net)$id = sampledata[names(V(net)), "host_subject_id"]
@@ -73,7 +73,7 @@ ggplot(gnet, aes(x = x, y = y, xend = xend, yend = yend))+
 
 ```{r MSTJaccardplain}
 library("phyloseqGraphTest")
-gt = graph_perm_test(ps1, "host_subject_id", distance="jaccard",
+gt = graph_perm_test(micephyloseq, "host_subject_id", distance="jaccard",
                      type="mst",  nperm=1000)
 plot_test_network(gt)
 ```
@@ -88,8 +88,8 @@ The permutation histogram of the number of pure edges in the network obtained fr
 
 
 ```{r ggnetworkphyl}
-net = make_network(ps1, max.dist = 0.35)
-sampledata = data.frame(sample_data(ps1))
+net = make_network(micephyloseq, max.dist = 0.35)
+sampledata = data.frame(sample_data(micephyloseq))
 V(net)$id = sampledata[names(V(net)), "host_subject_id"]
 V(net)$litter = sampledata[names(V(net)), "family_relationship"]
 netg = ggnetwork(net)
@@ -107,7 +107,7 @@ ggplot(netg, aes(x = x, y = y, xend = xend, yend = yend)) +
 ```
 
 ```{r mstperm}
-gt = graph_perm_test(ps1, "family_relationship",
+gt = graph_perm_test(micephyloseq, "family_relationship",
         grouping = "host_subject_id",
         distance = "jaccard", type = "mst", nperm= 1000)
 gt$pval
@@ -119,7 +119,7 @@ plot_permutations(gt)
 ```
 
 ```{r knn1test}
-gtnn1 = graph_perm_test(ps1, "family_relationship",
+gtnn1 = graph_perm_test(micephyloseq, "family_relationship",
                       grouping = "host_subject_id",
                       distance = "jaccard", type = "knn", knn = 1)
 gtnn1$pval

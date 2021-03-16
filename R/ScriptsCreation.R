@@ -11,6 +11,8 @@ usethis::use_tutorial("CooccurrenceGraphs",
 
 
 usethis::use_package("igraph")
+usethis::use_package("reshape")
+usethis::use_package("dplyr")
 usethis::use_package("tidygraph")
 usethis::use_package("ggraph")
 usethis::use_package("phyloseq")
